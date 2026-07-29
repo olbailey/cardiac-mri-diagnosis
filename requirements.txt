@@ -1,0 +1,22 @@
+# Core numerical & data handling
+numpy
+pandas
+pyarrow
+PyYAML
+
+# Visualization
+matplotlib
+tqdm
+
+# Machine learning
+torch
+torchmetrics
+
+# Data access
+kagglehub
+
+# Experiment tracking (optional)
+# mlflow
+
+# Testing
+pytest
