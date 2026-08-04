@@ -3,6 +3,8 @@ import os
 import numpy as np
 import nibabel as nib
 
+from utils.data import get_patient_frame, get_patient_label
+
 DESTINATION = "data/processed"
 ROOT_DIR = "data/raw"
 
@@ -11,44 +13,12 @@ def get_nii_file(nii_file_path) -> np.memmap:
     img = nib.load(nii_file_path)
     return img.get_fdata()
 
-def get_label(patient_dir_path):
-    config_path = os.path.join(patient_dir_path, "Info.cfg")
-    with open(config_path, 'r') as config_file:
-        for line in config_file.readlines():
-            if "Group" in line:
-                # line including the group will be structured as "Group: type"
-                return line.strip().split(": ")[1]
-
-        raise RuntimeError("Error! 'Group' config not found")
-        
-
-def get_frame(patient_path, finding_lowest=True):
-    frame_digits = []
-    for file_name in os.listdir(patient_path):
-        if "frame" in file_name:
-            # frame file with be structured for example patient001_frame01...
-            # so split to get 01... then retrieve the first two characters to get the number
-            frame_digit = file_name.split("frame")[1][:2]
-            frame_digits.append(frame_digit)
-
-    if finding_lowest:
-        lowest_frame_digit = min(list(map(lambda x: int(x), frame_digits))) 
-    else:
-        lowest_frame_digit = max(list(map(lambda x: int(x), frame_digits))) 
-
-    
-    for digit in frame_digits:
-        if f"{lowest_frame_digit:02d}" == digit:
-            return digit
-
-    raise RuntimeError("Error! Lowest frame not found")
-
 def process_patient(patient_path, patient_name, dest_images, dest_masks):
-    disease = get_label(patient_path)
+    disease = get_patient_label(patient_path)
     volume_4d_path = os.path.join(patient_path, patient_name + "_4d.nii")
     std, mean = calculate_patient_stats(volume_4d_path)
 
-    first_frame = get_frame(patient_path)
+    first_frame = get_patient_frame(patient_path)
     image_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + ".nii")
     mask_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + "_gt.nii")
 

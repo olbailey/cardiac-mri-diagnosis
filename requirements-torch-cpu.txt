@@ -13,6 +13,7 @@ tqdm
 # Machine learning
 torch
 torchmetrics
+torchvision
 
 # Data access
 kagglehub

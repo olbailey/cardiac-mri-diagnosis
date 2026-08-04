@@ -10,6 +10,10 @@ Or import the functions and call them directly in a notebook.
 import sys
 import nibabel as nib
 import numpy as np
+
+import torch
+from torchvision import transforms
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
@@ -22,6 +26,22 @@ LABEL_COLORS = ["none", "#e6194B", "#3cb44b", "#4363d8"]  # transparent bg, red,
 def load_volume(path):
     img = nib.load(path)
     return img.get_fdata()
+
+def center_crop(volume, crop_size: tuple[int, int]):
+    print(volume.shape)
+    vol = np.transpose(volume, (2, 0, 1))
+    print(vol.shape)
+
+    # Convert to tensor
+    vol_tensor = torch.from_numpy(vol).float()
+
+    # apply the crop
+    center_crop = transforms.CenterCrop(crop_size)
+    cropped = center_crop(vol_tensor)  # applied per-slice, batched over D
+
+    cropped_np = cropped.numpy()
+    vol_back = np.transpose(cropped_np, (1, 2, 0))
+    return vol_back
 
 
 def inspect_labels(mask_vol, path=""):
@@ -83,7 +103,7 @@ def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None
     ax.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
 
     ax.set_title(f"Slice {slice_idx}")
-    ax.axis("off")
+    # ax.axis("off")
     return ax
 
 
@@ -92,11 +112,9 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
     """Grid view of every slice in the volume, image+mask overlaid."""
     image_vol = load_volume(image_path)
     mask_vol = load_volume(mask_path)
-    # print(mask_vol.shape)
-    # arr = np.array(mask_vol)
-    # arr = arr.reshape((10, 216, 256))
-    # print(arr.shape)
-    # print(np.unique(arr))
+
+    # image_vol = center_crop(image_vol, crop_size=(144, 144))
+    # mask_vol = center_crop(mask_vol, crop_size=(144, 144))
 
     # return
 
@@ -134,8 +152,9 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
 
 
 if __name__ == "__main__":
-    path = "data/raw/training/patient061/"
-    image_path = path + "patient061_frame01.nii"
-    mask_path = path + "patient061_frame01_gt.nii"
+    patient_num = 82
+    path = f"data/raw/training/patient{patient_num:03d}/"
+    image_path = path + f"patient{patient_num:03d}_frame01.nii"
+    mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"
     show_all_slices(image_path, mask_path, save_path="output/analysis/overlay_grid.png",
                     )
