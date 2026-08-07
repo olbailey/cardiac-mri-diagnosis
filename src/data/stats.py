@@ -8,16 +8,20 @@ from utils.data import get_patient_frame, get_patient_label
 ROOT_DIR = "data/raw"
 
 class patient():
-    def __init__(self, volume, mask, label):
+    def __init__(self, volume, mask, label, voxel_size):
         self.volume = volume
         self.mask = mask
         self.label = label
+        self.voxel_size = voxel_size
 
     def get_num_slices(self):
         return self.volume.shape[2]
 
     def get_image_size(self):
         return self.volume.shape[:2]
+
+    def get_voxel_sizes(self):
+        return np.array(self.voxel_size[0])
 
 def load_data() -> list[patient]:
     patients = []
@@ -41,19 +45,24 @@ def process_patient(patient_path, patient_name):
     image_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + ".nii")
     mask_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + "_gt.nii")
 
-    image_volume = nib.load(image_volume_path).get_fdata()
+    image_volume = nib.load(image_volume_path)
+    image_voxel_size = image_volume.header.get_zooms()
+    image_volume_np = image_volume.get_fdata()
     mask_volume = nib.load(mask_volume_path).get_fdata()
 
-    return image_volume, mask_volume, label
+    return image_volume_np, mask_volume, label, image_voxel_size
     
 
 if __name__ == "__main__":
     patients = load_data()
     image_sizes = []
     for person in patients:
-        image_sizes.append(person.get_image_size())
+        image_sizes.append(person.get_voxel_sizes())
 
     arr = np.array(image_sizes)
 
     print(np.max(arr, axis=0), np.argmax(arr, axis=0))
     print(np.min(arr, axis=0), np.argmin(arr, axis=0))
+    print(np.median(arr, axis=0))
+    print(np.mean(arr, axis=0))
+    print(np.std(arr, axis=0))
