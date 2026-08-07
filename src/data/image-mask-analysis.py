@@ -13,6 +13,7 @@ import numpy as np
 
 import torch
 from torchvision import transforms
+import albumentations as A
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -27,21 +28,16 @@ def load_volume(path):
     img = nib.load(path)
     return img.get_fdata()
 
-def center_crop(volume, crop_size: tuple[int, int]):
-    print(volume.shape)
-    vol = np.transpose(volume, (2, 0, 1))
-    print(vol.shape)
+def center_crop(image_vol, mask_vol):
+    train_transform = A.Compose([
+        A.LongestMaxSize(max_size=500),          # cap the largest side
+        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
+        A.CenterCrop(height=384, width=384),      # or whatever your model input is
+    ])
 
-    # Convert to tensor
-    vol_tensor = torch.from_numpy(vol).float()
+    cropped = train_transform(image=image_vol, mask=mask_vol)  # applied per-slice, batched over D
 
-    # apply the crop
-    center_crop = transforms.CenterCrop(crop_size)
-    cropped = center_crop(vol_tensor)  # applied per-slice, batched over D
-
-    cropped_np = cropped.numpy()
-    vol_back = np.transpose(cropped_np, (1, 2, 0))
-    return vol_back
+    return cropped["image"], cropped["mask"]
 
 
 def inspect_labels(mask_vol, path=""):
@@ -113,8 +109,7 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
     image_vol = load_volume(image_path)
     mask_vol = load_volume(mask_path)
 
-    # image_vol = center_crop(image_vol, crop_size=(144, 144))
-    # mask_vol = center_crop(mask_vol, crop_size=(144, 144))
+    image_vol, mask_vol = center_crop(image_vol, mask_vol)
 
     # return
 
@@ -152,7 +147,7 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
 
 
 if __name__ == "__main__":
-    patient_num = 82
+    patient_num = 57
     path = f"data/raw/training/patient{patient_num:03d}/"
     image_path = path + f"patient{patient_num:03d}_frame01.nii"
     mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"

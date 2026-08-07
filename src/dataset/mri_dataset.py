@@ -5,6 +5,8 @@ import nibabel as nib
 
 import torch
 from torch.utils.data import Dataset, Subset, DataLoader
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 class MriDataset(Dataset):
     def __init__(self, root_dir, transform=None):
@@ -39,6 +41,24 @@ class MriDataset(Dataset):
         return np.load(path)
 
 
+def create_transforms():
+    train_transform = A.Compose([
+        A.LongestMaxSize(max_size=500),          # cap the largest side
+        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
+        A.CenterCrop(height=384, width=384),      # or whatever your model input is
+        A.HorizontalFlip(p=0.5),
+        A.RandomBrightnessContrast(p=0.3),
+        ToTensorV2(),
+    ])
+
+    test_transform = A.Compose([
+        A.LongestMaxSize(max_size=500),
+        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
+        A.CenterCrop(height=384, width=384),
+        ToTensorV2(),
+    ])
+
+    return train_transform, test_transform
 
 
 if __name__ == "__main__":

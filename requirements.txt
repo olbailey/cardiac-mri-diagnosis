@@ -13,6 +13,7 @@ tqdm
 torch
 torchmetrics
 torchvision
+albumentations
 
 # Data access
 kagglehub
