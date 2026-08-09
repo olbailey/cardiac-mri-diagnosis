@@ -4,6 +4,7 @@ pandas
 pyarrow
 PyYAML
 nibabel
+simpleitk
 
 # Visualization
 matplotlib

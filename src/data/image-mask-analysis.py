@@ -7,9 +7,9 @@ Usage:
 Or import the functions and call them directly in a notebook.
 """
 
-import sys
-import nibabel as nib
 import numpy as np
+
+import SimpleITK as sitk
 
 import torch
 from torchvision import transforms
@@ -18,15 +18,24 @@ import albumentations as A
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 
+from utils.data import resize_image
+
+sitk.ProcessObject.SetGlobalWarningDisplay(False)
 
 # ACDC-style labels: 0=background, 1=RV, 2=myocardium, 3=LV
 LABEL_NAMES = {0: "background", 1: "RV", 2: "myocardium", 3: "LV"}
 LABEL_COLORS = ["none", "#e6194B", "#3cb44b", "#4363d8"]  # transparent bg, red, green, blue
 
 
-def load_volume(path):
-    img = nib.load(path)
-    return img.get_fdata()
+def load_volume(path, is_mask):
+    img = sitk.ReadImage(path)
+    if not is_mask:
+        print("Original size:", img.GetSize())   
+    processed_img = resize_image(img, 1.5, is_mask=is_mask)
+    if not is_mask:
+        print("Processed size:", processed_img.GetSize())   
+    img_data = sitk.GetArrayFromImage(processed_img)   # (D, H, W)
+    return img_data
 
 def center_crop(image_vol, mask_vol):
     train_transform = A.Compose([
@@ -57,7 +66,7 @@ def inspect_labels(mask_vol, path=""):
 
 
 def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None,
-                          transpose=True, flip_ud=False, flip_lr=False):
+                          transpose=True, flip_ud=False, flip_lr=False, aug_message=None):
     """Display one slice of a 3D volume with its mask overlaid in color.
 
     NIfTI arrays are stored (row, col) which often doesn't match how you'd
@@ -73,8 +82,8 @@ def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None
     if slice_idx is None:
         slice_idx = image_vol.shape[2] // 2  # middle slice by default
 
-    img_slice = image_vol[:, :, slice_idx]
-    mask_slice = mask_vol[:, :, slice_idx]
+    img_slice = image_vol[slice_idx, :, :]
+    mask_slice = mask_vol[slice_idx, :, :]
 
     if transpose:
         img_slice = img_slice.T
@@ -98,7 +107,11 @@ def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None
     masked = np.ma.masked_where(mask_slice == 0, mask_slice)  # don't paint background
     ax.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
 
-    ax.set_title(f"Slice {slice_idx}")
+    if aug_message is None:
+        ax.set_title(f"Slice {slice_idx}")
+    else:
+        ax.set_title(f"Slice {aug_message}{slice_idx}")
+
     # ax.axis("off")
     return ax
 
@@ -106,18 +119,14 @@ def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None
 def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
                      transpose=True, flip_ud=False, flip_lr=False):
     """Grid view of every slice in the volume, image+mask overlaid."""
-    image_vol = load_volume(image_path)
-    mask_vol = load_volume(mask_path)
-
-    image_vol, mask_vol = center_crop(image_vol, mask_vol)
-
-    # return
+    image_vol = load_volume(image_path, False)
+    mask_vol = load_volume(mask_path, True)
 
     inspect_labels(mask_vol, path=mask_path)
 
-    n_slices = image_vol.shape[2]
+    n_slices = image_vol.shape[0]
     cols = min(5, n_slices)
-    rows = int(np.ceil(n_slices / cols))
+    rows = int(np.ceil((n_slices / cols) * 2))
 
     fig, axes = plt.subplots(rows, cols, figsize=(cols * 3, rows * 3))
     axes = np.atleast_1d(axes).flatten()
@@ -125,6 +134,12 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
     for i in range(n_slices):
         show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i],
                               transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr)
+
+    # image_vol, mask_vol = center_crop(image_vol, mask_vol)
+
+    # for i in range(n_slices):
+    #         show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i + n_slices],
+    #                               transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr, aug_message="augmented ")
 
     for i in range(n_slices, len(axes)):
         axes[i].axis("off")
@@ -147,7 +162,8 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
 
 
 if __name__ == "__main__":
-    patient_num = 57
+    # largest patient voxel = 135, lowest = 57
+    patient_num = 85
     path = f"data/raw/training/patient{patient_num:03d}/"
     image_path = path + f"patient{patient_num:03d}_frame01.nii"
     mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"
