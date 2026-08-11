@@ -37,16 +37,19 @@ def load_volume(path, is_mask):
     img_data = sitk.GetArrayFromImage(processed_img)   # (D, H, W)
     return img_data
 
-def center_crop(image_vol, mask_vol):
+def center_crop(image_vol, mask_vol, centre_crop_size):
     train_transform = A.Compose([
-        A.LongestMaxSize(max_size=500),          # cap the largest side
-        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
-        A.CenterCrop(height=384, width=384),      # or whatever your model input is
+        A.PadIfNeeded(min_height=centre_crop_size, min_width=centre_crop_size, fill=0, fill_mask=0),
+        A.CenterCrop(height=centre_crop_size, width=centre_crop_size),      # or whatever your model input is
     ])
+    aug_images = []
+    aug_masks = []
+    for image, mask in zip(image_vol, mask_vol):
+        cropped = train_transform(image=image, mask=mask)  # applied per-slice, batched over D
+        aug_images.append(cropped["image"])
+        aug_masks.append(cropped["mask"])
 
-    cropped = train_transform(image=image_vol, mask=mask_vol)  # applied per-slice, batched over D
-
-    return cropped["image"], cropped["mask"]
+    return aug_images, aug_masks
 
 
 def inspect_labels(mask_vol, path=""):
@@ -82,8 +85,8 @@ def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None
     if slice_idx is None:
         slice_idx = image_vol.shape[2] // 2  # middle slice by default
 
-    img_slice = image_vol[slice_idx, :, :]
-    mask_slice = mask_vol[slice_idx, :, :]
+    img_slice = image_vol[slice_idx]
+    mask_slice = mask_vol[slice_idx]
 
     if transpose:
         img_slice = img_slice.T
@@ -135,13 +138,13 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
         show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i],
                               transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr)
 
-    # image_vol, mask_vol = center_crop(image_vol, mask_vol)
+    image_vol, mask_vol = center_crop(image_vol, mask_vol, centre_crop_size=200)
 
-    # for i in range(n_slices):
-    #         show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i + n_slices],
-    #                               transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr, aug_message="augmented ")
+    for i in range(n_slices):
+            show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i + n_slices],
+                                  transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr, aug_message="augmented ")
 
-    for i in range(n_slices, len(axes)):
+    for i in range(n_slices * 2, len(axes)):
         axes[i].axis("off")
 
     # legend
@@ -162,8 +165,8 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
 
 
 if __name__ == "__main__":
-    # largest patient voxel = 135, lowest = 57
-    patient_num = 85
+    # largest patient voxel = 135, lowest = 85
+    patient_num = 57
     path = f"data/raw/training/patient{patient_num:03d}/"
     image_path = path + f"patient{patient_num:03d}_frame01.nii"
     mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"

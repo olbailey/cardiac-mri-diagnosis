@@ -63,10 +63,12 @@ if __name__ == "__main__":
     patients = load_data()
     image_sizes = []
     for person in patients:
-        image_sizes.append(person.resized_volume.GetSize()[:2])
+        image_sizes.append(person.resized_volume.GetSize()[2])
 
     arr = np.array(image_sizes)
+    print(f"arr shape: {arr.shape}")
 
+    print(f"sum: {np.sum(arr)}")
     print(f"max: {np.max(arr, axis=0), np.argmax(arr, axis=0)}")
     print(f"min: {np.min(arr, axis=0), np.argmin(arr, axis=0)}")
     print(f"median: {np.median(arr, axis=0)}")
