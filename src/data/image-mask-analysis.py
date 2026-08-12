@@ -11,14 +11,12 @@ import numpy as np
 
 import SimpleITK as sitk
 
-import torch
-from torchvision import transforms
 import albumentations as A
 
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 
 from utils.data import resize_image
+from utils.graphs import show_slice_with_mask
 
 sitk.ProcessObject.SetGlobalWarningDisplay(False)
 
@@ -68,59 +66,7 @@ def inspect_labels(mask_vol, path=""):
     return values
 
 
-def show_slice_with_mask(image_vol, mask_vol, slice_idx=None, alpha=0.4, ax=None,
-                          transpose=True, flip_ud=False, flip_lr=False, aug_message=None):
-    """Display one slice of a 3D volume with its mask overlaid in color.
-
-    NIfTI arrays are stored (row, col) which often doesn't match how you'd
-    expect the image to look on screen, and radiological convention can add
-    a flip on top of that. Defaults here (transpose + origin='lower') work
-    for most ACDC-style data, but ALWAYS check visually against a reference
-    viewer (e.g. ITK-SNAP, or the .nii metadata) before trusting orientation
-    for training. If the heart looks sideways or mirrored, toggle these:
-        transpose : swap rows/cols (usually needed, default True)
-        flip_ud   : flip vertically after transpose
-        flip_lr   : flip horizontally after transpose
-    """
-    if slice_idx is None:
-        slice_idx = image_vol.shape[2] // 2  # middle slice by default
-
-    img_slice = image_vol[slice_idx]
-    mask_slice = mask_vol[slice_idx]
-
-    if transpose:
-        img_slice = img_slice.T
-        mask_slice = mask_slice.T
-    if flip_ud:
-        img_slice = np.flipud(img_slice)
-        mask_slice = np.flipud(mask_slice)
-    if flip_lr:
-        img_slice = np.fliplr(img_slice)
-        mask_slice = np.fliplr(mask_slice)
-
-    # normalize image for display
-    img_norm = (img_slice - img_slice.min()) / (img_slice.max() - img_slice.min() + 1e-8)
-
-    if ax is None:
-        fig, ax = plt.subplots(figsize=(6, 6))
-
-    ax.imshow(img_norm, cmap="gray", origin="lower")
-
-    cmap = ListedColormap(LABEL_COLORS)
-    masked = np.ma.masked_where(mask_slice == 0, mask_slice)  # don't paint background
-    ax.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
-
-    if aug_message is None:
-        ax.set_title(f"Slice {slice_idx}")
-    else:
-        ax.set_title(f"Slice {aug_message}{slice_idx}")
-
-    # ax.axis("off")
-    return ax
-
-
-def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
-                     transpose=True, flip_ud=False, flip_lr=False):
+def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None):
     """Grid view of every slice in the volume, image+mask overlaid."""
     image_vol = load_volume(image_path, False)
     mask_vol = load_volume(mask_path, True)
@@ -135,14 +81,12 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None,
     axes = np.atleast_1d(axes).flatten()
 
     for i in range(n_slices):
-        show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i],
-                              transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr)
+        show_slice_with_mask(image_vol[i], mask_vol[i], alpha=alpha, ax=axes[i], title=f"Slice {i}")
 
     image_vol, mask_vol = center_crop(image_vol, mask_vol, centre_crop_size=200)
 
     for i in range(n_slices):
-            show_slice_with_mask(image_vol, mask_vol, slice_idx=i, alpha=alpha, ax=axes[i + n_slices],
-                                  transpose=transpose, flip_ud=flip_ud, flip_lr=flip_lr, aug_message="augmented ")
+            show_slice_with_mask(image_vol[i], mask_vol[i], alpha=alpha, ax=axes[i + n_slices], title=f"Slice augmented {i}")
 
     for i in range(n_slices * 2, len(axes)):
         axes[i].axis("off")
@@ -170,5 +114,4 @@ if __name__ == "__main__":
     path = f"data/raw/training/patient{patient_num:03d}/"
     image_path = path + f"patient{patient_num:03d}_frame01.nii"
     mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"
-    show_all_slices(image_path, mask_path, save_path="output/analysis/overlay_grid.png",
-                    )
+    show_all_slices(image_path, mask_path, save_path="output/analysis/overlay_grid.png")

@@ -1,25 +1,47 @@
+import numpy as np
+
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+
 import torch
 from torch.utils.data import DataLoader
-import pandas as pd
-import matplotlib.pyplot as plt
 
-def draw_graph(df: pd.DataFrame, data_label: str, title: str, y_label: str, x_label, length=20, colour="#1f77b4", other_values=[]) -> None:
-    plt.figure(figsize=(length, 5))
 
-    if other_values is not None:
-        plt.plot(df["Datetime"], df[data_label], label=data_label)
-        for item_label in other_values:
-            plt.plot(df["Datetime"], df[item_label], label=item_label)
-    else:
-        plt.plot(df["Datetime"], df[data_label], label=data_label, color=colour)
+LABEL_NAMES = {0: "background", 1: "RV", 2: "myocardium", 3: "LV"}
+LABEL_COLORS = ["none", "#e6194B", "#3cb44b", "#4363d8"]
 
-    plt.xlabel(x_label)
-    plt.ylabel(y_label)
-    plt.title(title)
-    
-    plt.grid(True)
-    plt.legend()
-    plt.show()
+def show_slice_with_mask(img_slice, mask_slice, title, alpha=0.4, ax=None, hide_axis=False):
+    """Display one slice of a 3D volume with its mask overlaid in color.
+
+    NIfTI arrays are stored (row, col) which often doesn't match how you'd
+    expect the image to look on screen, and radiological convention can add
+    a flip on top of that. Defaults here (transpose + origin='lower') work
+    for most ACDC-style data, but ALWAYS check visually against a reference
+    viewer (e.g. ITK-SNAP, or the .nii metadata) before trusting orientation
+    for training. If the heart looks sideways or mirrored, toggle these:
+        transpose : swap rows/cols (usually needed, default True)
+        flip_ud   : flip vertically after transpose
+        flip_lr   : flip horizontally after transpose
+    """
+
+    # normalize image for display
+    img_norm = (img_slice - img_slice.min()) / (img_slice.max() - img_slice.min() + 1e-8)
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=(6, 6))
+
+    ax.imshow(img_norm, cmap="gray", origin="lower")
+
+    cmap = ListedColormap(LABEL_COLORS)
+    masked = np.ma.masked_where(mask_slice == 0, mask_slice)  # don't paint background
+    ax.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
+
+    ax.set_title(title)
+
+    if hide_axis:
+        ax.axis("off")
+
+    return ax
 
 def plot_predictions(model, loader: DataLoader, device: torch.device, num_points: int = None, title: str = "Predicted vs Actual"):
     """
