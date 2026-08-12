@@ -1,7 +1,5 @@
 # Core numerical & data handling
 numpy
-pandas
-pyarrow
 PyYAML
 nibabel
 simpleitk
@@ -13,8 +11,9 @@ tqdm
 # Machine learning
 torch
 torchmetrics
-torchvision
 albumentations
+monai
+segmentation-models-pytorch
 
 # Data access
 kagglehub

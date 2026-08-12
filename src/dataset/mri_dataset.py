@@ -41,10 +41,19 @@ class MriDataset(Dataset):
         return np.load(path)
 
 
-def create_transforms():
+def create_transforms(image_size: int) -> A.Compose:
+    """_summary_
+
+    Args:
+        image_size (int): Set image size for the input for the model,
+        will output a square image, image size must be a multiple of 2^k, where k is the number of U-net pooling steps
+
+    Returns:
+        A.Compose: _description_
+    """
     basic_transform = [
-        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
-        A.CenterCrop(height=384, width=384),
+        A.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=0, value=0),
+        A.CenterCrop(height=image_size, width=image_size),
         ToTensorV2(),
     ]
 
