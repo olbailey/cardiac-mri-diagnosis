@@ -41,24 +41,42 @@ class MriDataset(Dataset):
         return np.load(path)
 
 
-def create_transforms():
-    train_transform = A.Compose([
-        A.LongestMaxSize(max_size=500),          # cap the largest side
-        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
-        A.CenterCrop(height=384, width=384),      # or whatever your model input is
-        A.HorizontalFlip(p=0.5),
-        A.RandomBrightnessContrast(p=0.3),
-        ToTensorV2(),
-    ])
+def create_transforms(image_size: int) -> A.Compose:
+    """_summary_
 
-    test_transform = A.Compose([
-        A.LongestMaxSize(max_size=500),
-        A.PadIfNeeded(min_height=500, min_width=500, border_mode=0, value=0),
-        A.CenterCrop(height=384, width=384),
+    Args:
+        image_size (int): Set image size for the input for the model,
+        will output a square image, image size must be a multiple of 2^k, where k is the number of U-net pooling steps
+
+    Returns:
+        A.Compose: _description_
+    """
+    basic_transform = [
+        A.PadIfNeeded(min_height=image_size, min_width=image_size, border_mode=0, value=0),
+        A.CenterCrop(height=image_size, width=image_size),
         ToTensorV2(),
-    ])
+    ]
+
+    train_transform = A.Compose(
+        [
+            
+        ]
+        + basic_transform
+    )
+
+    test_transform = A.Compose(basic_transform)
 
     return train_transform, test_transform
+
+def get_dataloaders(train_dataset, test_dataset, batch_size, device):
+    if device.type == "cuda":
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+        test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=2)
+    else:
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, test_loader
 
 
 if __name__ == "__main__":
