@@ -26,7 +26,7 @@ test_dataset = MriDataset(TEST_PATH, test_transform)
 
 train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
 
-model = UNet(num_classes=4, base_c=64)
+model = UNet(num_classes=4, encoder_depth=4, base_c=64)
 
 # Monia U-Net models and loss
 model = monia_Unet(
