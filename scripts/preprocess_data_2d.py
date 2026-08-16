@@ -5,6 +5,8 @@ import numpy as np
 import nibabel as nib
 import SimpleITK as sitk
 
+from tqdm.auto import tqdm
+
 from utils.data import get_patient_frame, get_patient_label, resize_image
 
 sitk.ProcessObject.SetGlobalWarningDisplay(False)
@@ -57,9 +59,16 @@ def process_folder(folder_name):
     entries = os.scandir(raw_dir)
     sorted_entries = sorted(entries, key=lambda x: x.name.lower())
 
-    for entry in sorted_entries:
+    processing_progress = tqdm(sorted_entries, desc=f"Processing {folder_name} data", unit="patient")
+
+    for entry in processing_progress:
         if entry.is_dir(follow_symlinks=False):
             process_patient(entry.path, entry.name, processed_images, processed_masks)
+
+def save_info():
+    with open(os.path.join(DESTINATION, "info.txt"), "w") as f:
+        f.write(f"Voxel spacing mean: {VOXEL_SPACING_MEAN}\n")
+        f.write(f"Normalisation: Z-Score\n")
 
 
 def main():
@@ -68,9 +77,9 @@ def main():
     os.makedirs(DESTINATION, exist_ok=True)
     print("This will take a minute...")
     process_folder("training")
-    print("Processed training data.")
     process_folder("testing")
-    print("Processed testing data.")
+    save_info()
+    print(f"Saved preprocessing information to {DESTINATION}/info.txt")
 
 if __name__ == "__main__":
     main()
