@@ -8,18 +8,18 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from torchmetrics.regression import MeanSquaredError, MeanAbsoluteError
+from monai.metrics import DiceMetric
+from monai.transforms import AsDiscrete, Compose
+from monai.data import decollate_batch
 
 from tqdm.auto import tqdm
 
-from .graphs import plot_predictions
+# from .graphs import plot_predictions
 
 
 def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim.Adam, device: torch.device, print_interval_num=10):
     model.train()
     running_loss = 0
-    running_mae = 0
-    total = 0
     num_batches = len(train_loader)
     print_interval = max(1, num_batches // print_interval_num)
 
@@ -38,35 +38,47 @@ def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim
 
         # Track progress
         running_loss += loss.item()
-        running_mae += (predicted - target).abs().mean().item()
 
         if batch_idx % print_interval == 0 or (batch_idx + 1) == num_batches:
             avg_loss = running_loss / (batch_idx + 1)
-            avg_mae = running_mae / (batch_idx + 1)
             
-            train_progress_bar.set_postfix(loss=f"{avg_loss:.3f}", MAE=f"{avg_mae:.6f}")
+            train_progress_bar.set_postfix(loss=f"{avg_loss:.3f}")
         batch_idx += 1
 
-def evaluate(model: nn.Module, val_loader: DataLoader, device: torch.device):
+def evaluate(model: nn.Module, val_loader: DataLoader, classes_num: 4, device: torch.device):
     model.eval()
 
-    rmse_metric = MeanSquaredError(squared=False)
-    mae_metric = MeanAbsoluteError()
+    # note: include_background=False is standard for reporting -
+    # background Dice is usually near 1.0 and inflates your average meaninglessly
+    dice_metric = DiceMetric(include_background=False, reduction="mean", get_not_nans=False)
+
+    # post-processing to convert model outputs -> discrete one-hot predictions
+    post_pred = Compose([AsDiscrete(argmax=True, to_onehot=classes_num)])
+    post_label = Compose([AsDiscrete(to_onehot=classes_num)])
 
     with torch.no_grad():
         val_progress_bar = tqdm(val_loader, desc=f"Validation", unit="batch")
 
         for inputs, targets in val_progress_bar:
             inputs, targets = inputs.to(device), targets.to(device)
-            predicted = model(inputs).squeeze(-1)
+            predicted = model(inputs)
 
-            rmse_metric.update(predicted, targets)
-            mae_metric.update(predicted, targets)
+            outputs = decollate_batch(predicted)
+            labels  = decollate_batch(targets)
 
-    mae = mae_metric.compute().item()
-    rmse = rmse_metric.compute().item()
+            # apply post-processing: argmax -> one-hot for predictions, one-hot for labels
+            outputs = [post_pred(o) for o in outputs]
+            labels  = [post_label(l) for l in labels]
 
-    return mae, rmse
+            # accumulate - this doesn't return a value yet, just adds to internal buffer
+            dice_metric(y_pred=outputs, y=labels)
+
+    # aggregate over the whole validation set
+    mean_dice = dice_metric.aggregate().item()
+    dice_metric.reset()  # reset for next epoch
+
+
+    return mean_dice
     
 class EarlyStopping:
     def __init__(self, temp_model_dir, patience, min_delta, restore_best_weights=True):
@@ -95,6 +107,7 @@ class EarlyStopping:
         return model
         
     def save_model(self, model):
+        os.makedirs(self.temp_model_dir, exist_ok=True)
         torch.save(model.state_dict(), os.path.join(self.temp_model_dir, "model_temp_save.pt"))
 
     def restore_best_model(self, model:nn.Module):
@@ -118,10 +131,10 @@ def finish_training(data_dir: str, model: nn.Module):
     model_name = input("enter the file name for the model trained: ")
     torch.save(model.state_dict(), os.path.join(data_dir, model_name + ".pt"))
 
-def show_graph(model, val_loader, device, overide_show=False):
-    if not overide_show:
-        try:
-            x = int(input("How many points would you like to plot? "))
-            plot_predictions(model, val_loader, device, num_points=x)
-        except ValueError:
-            pass
+# def show_graph(model, val_loader, device, overide_show=False):
+#     if not overide_show:
+#         try:
+#             x = int(input("How many points would you like to plot? "))
+#             plot_predictions(model, val_loader, device, num_points=x)
+#         except ValueError:
+#             pass
