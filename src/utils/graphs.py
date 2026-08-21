@@ -43,6 +43,32 @@ def show_slice_with_mask(img_slice, mask_slice, title, alpha=0.4, ax=None, hide_
 
     return ax
 
+def show_single_slice_prediction(model: torch.nn.Module, test_dataset, slice_name, classes_num, device, alpha=0.4):
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, color=LABEL_COLORS[i])
+        for i in [1, 2, 3]
+    ]
+    plt.legend(handles, [LABEL_NAMES[i] for i in [1, 2, 3]], loc="upper right")
+
+    model.eval()
+    with torch.no_grad():
+        img_slice, mask_slice, plain_slice = test_dataset.apply_transform(slice_name)
+
+        output = model(img_slice.to(device).unsqueeze(0))
+        predict = output.squeeze(0).cpu().numpy()
+        predict = np.argmax(predict, axis=0)
+
+        img_slice = img_slice.squeeze().cpu().numpy()
+
+        img_norm = (img_slice - img_slice.min()) / (img_slice.max() - img_slice.min() + 1e-8)
+        plt.imshow(img_norm, cmap="gray", origin="lower")
+
+        cmap = ListedColormap(LABEL_COLORS)
+        masked = np.ma.masked_where(predict == 0, predict)  # don't paint background
+        plt.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
+
+        plt.show()
+
 # def plot_predictions(model, loader: DataLoader, device: torch.device, num_points: int = None, title: str = "Predicted vs Actual"):
 #     """
 #     Runs the model over a DataLoader and plots predicted vs actual values.

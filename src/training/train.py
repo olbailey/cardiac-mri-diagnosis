@@ -34,6 +34,8 @@ ENABLE_MODEL_SAVING = False
 OVERIDE_SHOWING_GRAPHS = True
 MODEL_COMPUTE_VALUE_DELTAS = False
 
+TESTING_SLICE_NAME = "patient120_slice02_MINF.npy"
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 train_transform, test_transform = create_transforms(IMAGE_SIZE)
@@ -93,13 +95,13 @@ try:
 
         dice, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
         print(f"Training Loss: {train_loss:.4f}, Validation Loss: {eval_loss:.4f}")
-        print(f"Validation Dice Metric {{{dice}}}, lr: {schedular_plateau.get_last_lr()[0]:.6f}") #:.6f
+        print(f"Validation Dice Metric {{{dice}}}") #:.6f
+        print(f"lr: {schedular_plateau.get_last_lr()[0]:.6f}")
 
         # model = early_stopping.update(model, dice)
 
-        # schedular_plateau.step(dice)
+        # schedular_plateau.step(eval_loss)
 
-        # show_graph(model, test_loader, device, overide_show=OVERIDE_SHOWING_GRAPHS)
 
         # if early_stopping.stopped:
         #     # show_graph(model, test_loader, device)
@@ -107,5 +109,7 @@ try:
         #     break
         
 except KeyboardInterrupt:
+    show_single_slice_prediction(model, test_dataset, TESTING_SLICE_NAME, CLASSES_NUM, device)
+
     if ENABLE_MODEL_SAVING:
         finish_training(MODEL_DATA_DIR, model)
