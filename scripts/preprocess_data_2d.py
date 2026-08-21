@@ -18,19 +18,23 @@ VOXEL_SPACING_MEAN = 1.5
 def get_nii_file(nii_file_path, is_mask) -> np.memmap:
     img = sitk.ReadImage(nii_file_path)
     processed_img = resize_image(img, VOXEL_SPACING_MEAN, is_mask=is_mask)
-    img_data = sitk.GetArrayFromImage(processed_img) 
+    img_data = sitk.GetArrayFromImage(processed_img)
+
+    if not is_mask:
+        lower, upper = np.percentile(img_data, [0.5, 99.5])
+        img_data = np.clip(img_data, lower, upper)
+
     return img_data
 
 def process_patient(patient_path, patient_name, dest_images, dest_masks):
     disease = get_patient_label(patient_path)
-    volume_4d_path = os.path.join(patient_path, patient_name + "_4d.nii")
-    std, mean = calculate_patient_stats(volume_4d_path)
 
     first_frame = get_patient_frame(patient_path)
     image_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + ".nii")
     mask_volume_path = os.path.join(patient_path, patient_name + "_frame" + first_frame + "_gt.nii")
 
     image_volume = get_nii_file(image_volume_path, is_mask=False)
+    mean, std = np.mean(image_volume), np.std(image_volume)
     image_volume = (image_volume - mean) / (std + 1e-8)
     mask_volume = get_nii_file(mask_volume_path, is_mask=True)
 
@@ -41,11 +45,6 @@ def process_patient(patient_path, patient_name, dest_images, dest_masks):
         file_path_mask = os.path.join(dest_masks, f"{patient_name}_slice{i:02d}_{disease}.npy")
         np.save(file_path_image, image_volume[i, :, :])
         np.save(file_path_mask, mask_volume[i, :, :])
-
-def calculate_patient_stats(file_4d_path):
-    img = nib.load(file_4d_path)
-    volume_4d = img.get_fdata()
-    return np.std(volume_4d), np.mean(volume_4d)
 
 def process_folder(folder_name):
     raw_dir = os.path.join(ROOT_DIR, folder_name)
@@ -64,6 +63,7 @@ def process_folder(folder_name):
     for entry in processing_progress:
         if entry.is_dir(follow_symlinks=False):
             process_patient(entry.path, entry.name, processed_images, processed_masks)
+            # raise Exception
 
 def save_info():
     with open(os.path.join(DESTINATION, "info.txt"), "w") as f:

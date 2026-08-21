@@ -1,17 +1,17 @@
 model:
   type: "UNET"
-  input_size: 7
-  hidden_layers: 4
-  output_size: 15
-  hidden_size: 64
+  classes: 4
+  encoder_depth: 4
+  image_size: 256
+  base_channels: 64
   
 training:
   batch_size: 32
-  learning_rate: 0.001
+  learning_rate: 0.0001
   window_size: 60
   stride_size: 15
   patience: 4
   min_delta: 0.001
 
 data:
-  model_dir: "outputs/models/lstm"
+  model_dir: "output/models/unet"

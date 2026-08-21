@@ -51,7 +51,7 @@ def resize_image(itk_image: sitk.Image, voxel_spacing: float, is_mask=False) -> 
         resampler.SetInterpolator(sitk.sitkNearestNeighbor)
     else:
         # smooth interpolation for intensity images
-        resampler.SetInterpolator(sitk.sitkBSpline)   
+        resampler.SetInterpolator(sitk.sitkLinear)   
 
     return resampler.Execute(itk_image)
 

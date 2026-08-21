@@ -12,6 +12,7 @@ import segmentation_models_pytorch as smp
 from dataset import MriDataset, create_transforms, get_dataloaders
 from model import UNet
 from utils.training import train_epoch, evaluate, finish_training, EarlyStopping
+from utils.graphs import show_single_slice_prediction
 
 with open("configs/unet.yaml", 'r') as file:
     configs = yaml.safe_load(file)
@@ -21,10 +22,13 @@ MODEL_TEMP_DATA_DIR = "outputs/models/temp"
 TRAIN_FILE_PATH = "data/processed/training"
 TEST_FILE_PATH = "data/processed/testing"
 
-STRIDE_SIZE = configs["training"]["stride_size"]
-PREDICTION_SIZE = configs["model"]["output_size"]
-BATCH_SIZE = configs["training"]["batch_size"]
+CLASSES_NUM = configs["model"]["classes"]
+IMAGE_SIZE = configs["model"]["image_size"]
+ENCODER_DEPTH = configs["model"]["encoder_depth"]
+BASE_CHANNELS = configs["model"]["base_channels"]
+
 LEARNING_RATE = configs["training"]["learning_rate"]
+BATCH_SIZE = configs["training"]["batch_size"]
 
 ENABLE_MODEL_SAVING = False
 OVERIDE_SHOWING_GRAPHS = True
@@ -32,14 +36,16 @@ MODEL_COMPUTE_VALUE_DELTAS = False
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-train_transform, test_transform = create_transforms(256)
+train_transform, test_transform = create_transforms(IMAGE_SIZE)
 
 train_dataset = MriDataset(TRAIN_FILE_PATH, train_transform)
 test_dataset = MriDataset(TEST_FILE_PATH, test_transform)
 
 train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
 
-model = UNet(num_classes=4, encoder_depth=4, base_c=64)
+image, label = next(iter(train_loader))
+
+# model = UNet(num_classes=CLASSES_NUM, encoder_depth=ENCODER_DEPTH, base_c=64)
 
 # model = smp.Unet(
 #     encoder_name="resnet34",
@@ -54,14 +60,14 @@ model = UNet(num_classes=4, encoder_depth=4, base_c=64)
 model = monia_Unet(
     spatial_dims=2,
     in_channels=1,
-    out_channels=4,
+    out_channels=CLASSES_NUM,
     channels=(32, 64, 128, 256, 512),
     strides=(2, 2, 2, 2),
     num_res_units=2
 ).to(device)
-loss_function = DiceCELoss(sigmoid=True)
+loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
 
-optimizer = optim.Adam(model.parameters(), LEARNING_RATE)
+optimizer = optim.Adam(model.parameters(), LEARNING_RATE, weight_decay=1e-5)
 schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
 schedular_plateau = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, 
@@ -83,21 +89,22 @@ num_epochs = 50
 try:
     for epoch in range(num_epochs):
         print(f"\nEpoch: {epoch + 1}")
-        train_epoch(model, train_loader, loss_function, optimizer, device)
+        train_loss = train_epoch(model, train_loader, loss_function, optimizer, device)
 
-        dice = evaluate(model, test_loader, device)
-        print(f"Validation Dice Loss: {dice:.6f}, lr: {schedular_plateau.get_last_lr()[0]:.6f}")
+        dice, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
+        print(f"Training Loss: {train_loss:.4f}, Validation Loss: {eval_loss:.4f}")
+        print(f"Validation Dice Metric {{{dice}}}, lr: {schedular_plateau.get_last_lr()[0]:.6f}") #:.6f
 
-        model = early_stopping.update(model, dice)
+        # model = early_stopping.update(model, dice)
 
-        schedular_plateau.step(dice)
+        # schedular_plateau.step(dice)
 
         # show_graph(model, test_loader, device, overide_show=OVERIDE_SHOWING_GRAPHS)
 
-        if early_stopping.stopped:
-            # show_graph(model, test_loader, device)
-            finish_training(MODEL_DATA_DIR, model)
-            break
+        # if early_stopping.stopped:
+        #     # show_graph(model, test_loader, device)
+        #     finish_training(MODEL_DATA_DIR, model)
+        #     break
         
 except KeyboardInterrupt:
     if ENABLE_MODEL_SAVING:

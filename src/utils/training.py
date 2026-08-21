@@ -15,6 +15,7 @@ from monai.data import decollate_batch
 from tqdm.auto import tqdm
 
 # from .graphs import plot_predictions
+CLASSES = ["RV", "myocardium", "LV"]
 
 
 def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim.Adam, device: torch.device, print_interval_num=10):
@@ -30,7 +31,7 @@ def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim
     for data, target in train_progress_bar:
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        predicted = model(data).squeeze(-1)
+        predicted: torch.Tensor = model(data)
 
         loss = loss_function(predicted, target)
         loss.backward()
@@ -45,12 +46,18 @@ def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim
             train_progress_bar.set_postfix(loss=f"{avg_loss:.3f}")
         batch_idx += 1
 
-def evaluate(model: nn.Module, val_loader: DataLoader, classes_num: 4, device: torch.device):
+    return (running_loss / num_batches)
+
+def evaluate(model: nn.Module, val_loader: DataLoader, loss_function, classes_num, device: torch.device, print_interval_num=10):
     model.eval()
+    running_loss = 0
+    num_batches = len(val_loader)
+    print_interval = max(1, num_batches // print_interval_num)
+    batch_idx = 0
 
     # note: include_background=False is standard for reporting -
     # background Dice is usually near 1.0 and inflates your average meaninglessly
-    dice_metric = DiceMetric(include_background=False, reduction="mean", get_not_nans=False)
+    dice_metric = DiceMetric(include_background=False, reduction="mean_batch", get_not_nans=False)
 
     # post-processing to convert model outputs -> discrete one-hot predictions
     post_pred = Compose([AsDiscrete(argmax=True, to_onehot=classes_num)])
@@ -63,6 +70,14 @@ def evaluate(model: nn.Module, val_loader: DataLoader, classes_num: 4, device: t
             inputs, targets = inputs.to(device), targets.to(device)
             predicted = model(inputs)
 
+            running_loss += loss_function(predicted, targets).item()
+
+            if batch_idx % print_interval == 0 or (batch_idx + 1) == num_batches:
+                avg_loss = running_loss / (batch_idx + 1)
+                
+                val_progress_bar.set_postfix(loss=f"{avg_loss:.3f}")
+            batch_idx += 1
+
             outputs = decollate_batch(predicted)
             labels  = decollate_batch(targets)
 
@@ -74,11 +89,17 @@ def evaluate(model: nn.Module, val_loader: DataLoader, classes_num: 4, device: t
             dice_metric(y_pred=outputs, y=labels)
 
     # aggregate over the whole validation set
-    mean_dice = dice_metric.aggregate().item()
+    mean_dice = dice_metric.aggregate().tolist()
+
+    dice_per_class = ""
+    for i in range(0, classes_num - 1):
+        dice_per_class += f"{CLASSES[i]}: {mean_dice[i]:.6f}, "
+    dice_per_class = dice_per_class.removesuffix(", ")
+
     dice_metric.reset()  # reset for next epoch
 
 
-    return mean_dice
+    return dice_per_class, (running_loss / num_batches)
     
 class EarlyStopping:
     def __init__(self, temp_model_dir, patience, min_delta, restore_best_weights=True):

@@ -7,7 +7,7 @@ import torch
 from torch.utils.data import Dataset, Subset, DataLoader
 import monai
 from monai.transforms import (
-    Compose, LoadImaged, EnsureChannelFirstd, EnsureTyped, ResizeWithPadOrCropd,
+    Compose, LoadImaged, EnsureChannelFirstd, EnsureTyped, ResizeWithPadOrCropd, NormalizeIntensityd,
     RandAffined, RandFlipd, RandGaussianNoised, RandAdjustContrastd
 )
 
@@ -65,10 +65,10 @@ def create_transforms(image_size: int) -> monai.transforms.Compose:
     train_transform = Compose(
         basic_transform +
         [
-            RandAffined(keys=["image", "label"], prob=0.3, rotate_range=(0.1, 0.1), scale_range=(0.1, 0.1), mode=("bilinear", "nearest")), # Rotating and Scaling the image
+            # RandAffined(keys=["image", "label"], prob=0.3, rotate_range=(0.1, 0.1), scale_range=(0.1, 0.1), mode=("bilinear", "nearest")), # Rotating and Scaling the image
             # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0), # 
-            RandGaussianNoised(keys=["image"], prob=0.2, std=0.01), # Gaussian noise
-            RandAdjustContrastd(keys=["image"], prob=0.2, gamma=(0.8, 1.2)),
+            # RandGaussianNoised(keys=["image"], prob=0.2, std=0.01), # Gaussian noise
+            # RandAdjustContrastd(keys=["image"], prob=0.2, gamma=(0.8, 1.2)),
             EnsureTyped(keys=["image", "label"], dtype=[torch.float32, torch.long])
         ]
     )
