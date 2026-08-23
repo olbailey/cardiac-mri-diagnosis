@@ -48,24 +48,25 @@ def show_single_slice_prediction(model: torch.nn.Module, test_dataset, slice_nam
         plt.Rectangle((0, 0), 1, 1, color=LABEL_COLORS[i])
         for i in [1, 2, 3]
     ]
-    plt.legend(handles, [LABEL_NAMES[i] for i in [1, 2, 3]], loc="upper right")
 
     model.eval()
     with torch.no_grad():
-        img_slice, mask_slice, plain_slice = test_dataset.apply_transform(slice_name)
+        img_slice, mask_slice = test_dataset.apply_transform(slice_name)
 
         output = model(img_slice.to(device).unsqueeze(0))
-        predict = output.squeeze(0).cpu().numpy()
-        predict = np.argmax(predict, axis=0)
+        predict_mask = output.squeeze(0).cpu().numpy()
+        predict_mask = np.argmax(predict_mask, axis=0)
 
         img_slice = img_slice.squeeze().cpu().numpy()
+        mask_slice = mask_slice.squeeze().cpu().numpy()
 
-        img_norm = (img_slice - img_slice.min()) / (img_slice.max() - img_slice.min() + 1e-8)
-        plt.imshow(img_norm, cmap="gray", origin="lower")
+        fig, (ax1, ax2) = plt.subplots(1, 2)
 
-        cmap = ListedColormap(LABEL_COLORS)
-        masked = np.ma.masked_where(predict == 0, predict)  # don't paint background
-        plt.imshow(masked, cmap=cmap, vmin=0, vmax=3, alpha=alpha, origin="lower")
+        ax1 = show_slice_with_mask(img_slice, predict_mask, "Predicted Mask", ax=ax1)
+        ax2 = show_slice_with_mask(img_slice, mask_slice, "Expected Mask", ax=ax2)
+
+        fig.legend(handles, [LABEL_NAMES[i] for i in [1, 2, 3]], loc="upper right")
+        fig.suptitle("Comparison for model prediction")
 
         plt.show()
 

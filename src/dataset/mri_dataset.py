@@ -51,14 +51,12 @@ class MriDataset(Dataset):
             "label": os.path.join(self.path_masks, file_name)
         }
 
-        plain_image = np.load(data_dict["image"])
-
         if self.transform is not None:
             data_dict = self.transform(data_dict)
 
         image_tensor, mask_tensor = data_dict["image"], data_dict["label"]
 
-        return image_tensor, mask_tensor, plain_image
+        return image_tensor, mask_tensor
 
 
 def create_transforms(image_size: int) -> monai.transforms.Compose:

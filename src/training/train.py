@@ -45,32 +45,33 @@ test_dataset = MriDataset(TEST_FILE_PATH, test_transform)
 
 train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
 
-image, label = next(iter(train_loader))
+# image, label = next(iter(train_loader))
 
 # model = UNet(num_classes=CLASSES_NUM, encoder_depth=ENCODER_DEPTH, base_c=64)
 
-# model = smp.Unet(
-#     encoder_name="resnet34",
-#     encoder_weights="imagenet",
-#     encoder_depth=4,
-#     in_channels=1,
-#     classes=4,
-#     activation=None
-# )
+model = smp.Unet(
+    encoder_name="resnet34",
+    encoder_weights="imagenet",
+    encoder_depth=5,
+    in_channels=1,
+    classes=4,
+    activation=None,
+).to(device)
 
 # Monia U-Net models and loss
-model = monia_Unet(
-    spatial_dims=2,
-    in_channels=1,
-    out_channels=CLASSES_NUM,
-    channels=(32, 64, 128, 256, 512),
-    strides=(2, 2, 2, 2),
-    num_res_units=2
-).to(device)
+# model = monia_Unet(
+#     spatial_dims=2,
+#     in_channels=1,
+#     out_channels=CLASSES_NUM,
+#     channels=(32, 64, 128, 256, 512),
+#     strides=(2, 2, 2, 2),
+#     num_res_units=2
+# ).to(device)
+
 loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
 
 optimizer = optim.Adam(model.parameters(), LEARNING_RATE, weight_decay=1e-5)
-schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)
+schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
 schedular_plateau = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, 
     mode="min", 
@@ -96,9 +97,11 @@ try:
         dice, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
         print(f"Training Loss: {train_loss:.4f}, Validation Loss: {eval_loss:.4f}")
         print(f"Validation Dice Metric {{{dice}}}") #:.6f
-        print(f"lr: {schedular_plateau.get_last_lr()[0]:.6f}")
+        print(f"lr: {schedular_steplr.get_last_lr()[0]:.6f}")
 
         # model = early_stopping.update(model, dice)
+
+        schedular_steplr.step()
 
         # schedular_plateau.step(eval_loss)
 

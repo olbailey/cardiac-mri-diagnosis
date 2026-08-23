@@ -6,10 +6,8 @@ model:
   base_channels: 64
   
 training:
-  batch_size: 32
+  batch_size: 16
   learning_rate: 0.001
-  window_size: 60
-  stride_size: 15
   patience: 4
   min_delta: 0.01
 
