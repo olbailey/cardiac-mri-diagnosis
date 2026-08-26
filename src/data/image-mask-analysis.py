@@ -7,6 +7,8 @@ Usage:
 Or import the functions and call them directly in a notebook.
 """
 
+import os
+
 import numpy as np
 
 import SimpleITK as sitk
@@ -102,7 +104,8 @@ def show_all_slices(image_path, mask_path, alpha=0.4, save_path=None):
     plt.tight_layout()
 
     if save_path:
-        plt.savefig(save_path, dpi=120, bbox_inches="tight")
+        os.makedirs(save_path, exist_ok=True)
+        plt.savefig(save_path + "/overlay_grid.png", dpi=120, bbox_inches="tight")
         print(f"Saved to {save_path}")
     else:
         plt.show()
@@ -114,4 +117,4 @@ if __name__ == "__main__":
     path = f"data/raw/training/patient{patient_num:03d}/"
     image_path = path + f"patient{patient_num:03d}_frame01.nii"
     mask_path = path + f"patient{patient_num:03d}_frame01_gt.nii"
-    show_all_slices(image_path, mask_path, save_path="output/analysis/overlay_grid.png")
+    show_all_slices(image_path, mask_path, save_path="output/analysis")

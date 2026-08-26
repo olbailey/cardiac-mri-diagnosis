@@ -1,5 +1,6 @@
 import shutil
 import os
+import requests
 
 import kagglehub
 
@@ -10,7 +11,14 @@ def main():
     os.makedirs(DESTINATION, exist_ok=True)
 
     # Download latest version
-    path = kagglehub.dataset_download("samdazel/automated-cardiac-diagnosis-challenge-miccai17")
+    try:
+        path = kagglehub.dataset_download("samdazel/automated-cardiac-diagnosis-challenge-miccai17")
+    except requests.exceptions.SSLError as e:
+        print("SSL verification is being blocked please follow the guidance in the README.md found in the data directory")
+        print("https://www.kaggle.com/datasets/samdazel/automated-cardiac-diagnosis-challenge-miccai17")
+
+        return
+
     cache_path = os.path.join(path, "database/")
 
     print("Path to dataset files:", cache_path)
