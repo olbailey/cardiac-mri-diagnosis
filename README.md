@@ -3,11 +3,9 @@ A MRI Cardiac Diagnosis model, using patient data collected by academics across 
 
 ## Dataset description
 
-It is a Time Series Dataset
-contains 2075259 measurements gathered in a house located in Sceaux (7km out from Paris, France) between December 2006 and November 2010 (47 months).  
-It has 9 features and does contain missing values (~1.25%)
+The ACDC (Automated Cardiac Diagnosis Challenge) dataset is derived from real clinical exams conducted at the University Hospital of Dijon, France. It encompasses a diverse range of well-defined cardiac pathologies to facilitate effective machine learning model training and evaluation of physiological parameters derived from cine-Magnetic Resonance Imaging (MRI). The dataset comprises 150 patients evenly distributed across five distinct classes, each characterized by specific physiological parameters.
 
-![License](https://img.shields.io/github/license/olbailey/household-electricity-demand-forecasting)
+![License](https://img.shields.io/github/license/olbailey/cardiac-mri-diagnosis)
 
 ## How to run
 
