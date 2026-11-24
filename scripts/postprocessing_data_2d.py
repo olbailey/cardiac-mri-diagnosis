@@ -15,6 +15,8 @@ POSTPROCESSING_DIR = "data/postprocessed"
 TRAIN_FILE_PATH = "data/processed/training"
 TEST_FILE_PATH = "data/processed/testing"
 
+PADDING = True
+
 def main():
     if "postprocessed" in os.listdir("data"):
         print("Deleting previously generated data...")
@@ -54,13 +56,13 @@ def main():
     training_path = os.path.join(POSTPROCESSING_DIR, "training/")
     os.makedirs(os.path.dirname(training_path), exist_ok=True)
 
-    save_cropped_segmented_output(model, device, train_loader, training_path)
+    save_cropped_segmented_output(model, device, train_loader, training_path, padding=PADDING)
 
     print()
     test_path = os.path.join(POSTPROCESSING_DIR, "testing/")
     os.makedirs(os.path.dirname(test_path), exist_ok=True)
 
-    save_cropped_segmented_output(model, device, test_loader, test_path)
+    save_cropped_segmented_output(model, device, test_loader, test_path, padding=PADDING)
 
     print("\nPostprocessing complete.\n")
 
