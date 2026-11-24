@@ -1,1 +1,1 @@
-from .mri_dataset import MriDataset, create_transforms, get_dataloaders
+from .segmentation import MriDataset, create_transforms, get_dataloaders

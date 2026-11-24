@@ -3,6 +3,7 @@ import math
 
 import matplotlib.pyplot as plt
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -89,22 +90,23 @@ def evaluate(model: nn.Module, val_loader: DataLoader, loss_function, classes_nu
             dice_metric(y_pred=outputs, y=labels)
 
     # aggregate over the whole validation set
-    mean_dice = dice_metric.aggregate().tolist()
+    mean_dice_per_class = dice_metric.aggregate().tolist()
+    mean_dice = np.mean(mean_dice_per_class, axis=0)
 
     dice_per_class = ""
     for i in range(0, classes_num - 1):
-        dice_per_class += f"{CLASSES[i]}: {mean_dice[i]:.6f}, "
+        dice_per_class += f"{CLASSES[i]}: {mean_dice_per_class[i]:.6f}, "
     dice_per_class = dice_per_class.removesuffix(", ")
 
     dice_metric.reset()  # reset for next epoch
 
 
-    return dice_per_class, (running_loss / num_batches)
+    return mean_dice, dice_per_class, (running_loss / num_batches)
     
 class EarlyStopping:
-    def __init__(self, temp_model_dir, patience, min_delta, restore_best_weights=True):
-        self.current_best = math.inf
-        self.temp_model_dir = temp_model_dir
+    def __init__(self, model_dir, patience, min_delta, restore_best_weights=True):
+        self.current_best = -math.inf
+        self.model_dir = model_dir
         self.patience = patience
         self.min_delta = min_delta
         self.restore_best_weights = restore_best_weights
@@ -113,8 +115,9 @@ class EarlyStopping:
         self.stopped = False
 
     def update(self, model, value) -> nn.Module:
-        if value < self.current_best and self.current_best - value > self.min_delta:
+        if value > self.current_best and value - self.current_best > self.min_delta:
             self.save_model(model)
+            print(f"Metric has improved ({self.current_best:.6f} -> {value:.6f})")
             print(f"New best, saving model...")
             self.current_best = value
             self.count = 0
@@ -128,12 +131,12 @@ class EarlyStopping:
         return model
         
     def save_model(self, model):
-        os.makedirs(self.temp_model_dir, exist_ok=True)
-        torch.save(model.state_dict(), os.path.join(self.temp_model_dir, "model_temp_save.pt"))
+        os.makedirs(self.model_dir, exist_ok=True)
+        torch.save(model.state_dict(), os.path.join(self.model_dir, "checkpoint.pt"))
 
     def restore_best_model(self, model:nn.Module):
         try:
-            model.load_state_dict(torch.load(os.path.join(self.temp_model_dir, "model_temp_save.pt")))
+            model.load_state_dict(torch.load(os.path.join(self.model_dir, "checkpoint.pt")))
         except FileNotFoundError:
             print("ERROR! Could not find model parameter file!")
 

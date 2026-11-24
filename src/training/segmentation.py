@@ -10,31 +10,30 @@ from monai.losses import DiceCELoss
 import segmentation_models_pytorch as smp
 
 from dataset import MriDataset, create_transforms, get_dataloaders
-from model import UNet
 from utils.training import train_epoch, evaluate, finish_training, EarlyStopping
 from utils.graphs import show_single_slice_prediction
+from utils.segmentation.args_parser import parse_args
 
-with open("configs/unet.yaml", 'r') as file:
-    configs = yaml.safe_load(file)
+MODEL_DIR = "output/segmentation"
 
-MODEL_DATA_DIR = configs["data"]["model_dir"]
-MODEL_TEMP_DATA_DIR = "outputs/models/temp"
-TRAIN_FILE_PATH = "data/processed/training"
-TEST_FILE_PATH = "data/processed/testing"
+args, configs = parse_args(base_dir=MODEL_DIR)
+
+MODEL_DATA_NAME = args.model_name
+TRAIN_FILE_PATH = args.train_path
+TEST_FILE_PATH = args.test_path
 
 CLASSES_NUM = configs["model"]["classes"]
 IMAGE_SIZE = configs["model"]["image_size"]
 ENCODER_DEPTH = configs["model"]["encoder_depth"]
 BASE_CHANNELS = configs["model"]["base_channels"]
 
-LEARNING_RATE = configs["training"]["learning_rate"]
-BATCH_SIZE = configs["training"]["batch_size"]
+LEARNING_RATE = args.lr
+BATCH_SIZE = args.batch_size
 
-ENABLE_MODEL_SAVING = False
-OVERIDE_SHOWING_GRAPHS = True
-MODEL_COMPUTE_VALUE_DELTAS = False
+ENABLE_MODEL_SAVING = args.save_model
+TESTING_SLICE_NAME = args.test_slice
+NUM_EPOCHS = args.epochs
 
-TESTING_SLICE_NAME = "patient120_slice02_MINF.npy"
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -44,10 +43,6 @@ train_dataset = MriDataset(TRAIN_FILE_PATH, train_transform)
 test_dataset = MriDataset(TEST_FILE_PATH, test_transform)
 
 train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
-
-# image, label = next(iter(train_loader))
-
-# model = UNet(num_classes=CLASSES_NUM, encoder_depth=ENCODER_DEPTH, base_c=64)
 
 model = smp.Unet(
     encoder_name="resnet34",
@@ -82,37 +77,36 @@ schedular_plateau = optim.lr_scheduler.ReduceLROnPlateau(
 )
 
 early_stopping = EarlyStopping(
-    MODEL_TEMP_DATA_DIR, 
+    MODEL_DATA_NAME, 
     patience=configs["training"]["patience"], 
     min_delta=configs["training"]["min_delta"]
 )
 
-num_epochs = 50
 
 try:
-    for epoch in range(num_epochs):
+    for epoch in range(NUM_EPOCHS):
         print(f"\nEpoch: {epoch + 1}")
         train_loss = train_epoch(model, train_loader, loss_function, optimizer, device)
 
-        dice, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
+        mean_dice, dice_classes_str, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
         print(f"Training Loss: {train_loss:.4f}, Validation Loss: {eval_loss:.4f}")
-        print(f"Validation Dice Metric {{{dice}}}") #:.6f
+        print(f"Validation Dice Metric {dice_classes_str}") #:.6f
         print(f"lr: {schedular_steplr.get_last_lr()[0]:.6f}")
 
-        # model = early_stopping.update(model, dice)
+        model = early_stopping.update(model, mean_dice)
 
         schedular_steplr.step()
 
-        # schedular_plateau.step(eval_loss)
+        schedular_plateau.step(eval_loss)
 
 
-        # if early_stopping.stopped:
-        #     # show_graph(model, test_loader, device)
-        #     finish_training(MODEL_DATA_DIR, model)
-        #     break
+        if early_stopping.stopped:
+            # show_graph(model, test_loader, device)
+            # finish_training(MODEL_DIR, model)
+            break
         
 except KeyboardInterrupt:
     show_single_slice_prediction(model, test_dataset, TESTING_SLICE_NAME, CLASSES_NUM, device)
 
     if ENABLE_MODEL_SAVING:
-        finish_training(MODEL_DATA_DIR, model)
+        finish_training(MODEL_DIR, model)

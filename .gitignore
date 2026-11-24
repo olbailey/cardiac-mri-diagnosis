@@ -1,7 +1,8 @@
 # Local purposes
 data/raw
 data/processed
-output/*/
+output/*/*
+!output/*/.gitkeep
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
