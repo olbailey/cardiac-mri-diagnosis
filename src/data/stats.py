@@ -27,11 +27,14 @@ class patient():
     def get_voxel_sizes(self):
         return np.array(self.voxel_size[:2])
 
-def load_data() -> list[patient]:
+    def __repr__(self):
+        return f"Label: {self.label}, Volume size: {self.get_num_slices()}, Image size: {self.get_image_size()}, Voxel size: {self.get_voxel_sizes()}"
+
+def load_raw_data(data_dir: str) -> list[patient]:
     patients = []
 
     for folder_name in ("training", "testing"):
-        raw_dir = os.path.join(ROOT_DIR, folder_name)
+        raw_dir = os.path.join(data_dir, folder_name)
         
         entries = os.scandir(raw_dir)
         sorted_entries = sorted(entries, key=lambda x: x.name.lower())
@@ -60,7 +63,7 @@ def process_patient(patient_path, patient_name):
     
 
 if __name__ == "__main__":
-    patients = load_data()
+    patients = load_raw_data(ROOT_DIR)
     image_sizes = []
     for person in patients:
         image_sizes.append(person.resized_volume.GetSize()[2])
