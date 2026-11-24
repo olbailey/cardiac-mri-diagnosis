@@ -29,7 +29,7 @@ def train_epoch(model, train_loader: DataLoader, loss_function, optimizer: optim
 
     # for batch_idx, (data, target) in enumerate(train_loader):
     batch_idx = 0
-    for data, target in train_progress_bar:
+    for data, target, _ in train_progress_bar:
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
         predicted: torch.Tensor = model(data)
@@ -67,9 +67,9 @@ def evaluate(model: nn.Module, val_loader: DataLoader, loss_function, classes_nu
     with torch.no_grad():
         val_progress_bar = tqdm(val_loader, desc=f"Validation", unit="batch")
 
-        for inputs, targets in val_progress_bar:
-            inputs, targets = inputs.to(device), targets.to(device)
-            predicted = model(inputs)
+        for data, targets, _ in val_progress_bar:
+            data, targets = data.to(device), targets.to(device)
+            predicted = model(data)
 
             running_loss += loss_function(predicted, targets).item()
 
@@ -123,7 +123,7 @@ class EarlyStopping:
             self.count = 0
         elif self.count < self.patience:
             self.count += 1 
-            print(f"Model has regressed, current count: {self.count}/{self.patience}, Value Delta: {self.current_best - value:.8f}")
+            print(f"Model has regressed, current count: {self.count}/{self.patience}, Value Delta: {value - self.current_best:.8f}")
         elif self.restore_best_weights:
             model = self.restore_best_model(model)
             self.stopped = True
@@ -132,11 +132,11 @@ class EarlyStopping:
         
     def save_model(self, model):
         os.makedirs(self.model_dir, exist_ok=True)
-        torch.save(model.state_dict(), os.path.join(self.model_dir, "checkpoint.pt"))
+        torch.save(model.state_dict(), os.path.join(self.model_dir, "checkpoint.pth"))
 
     def restore_best_model(self, model:nn.Module):
         try:
-            model.load_state_dict(torch.load(os.path.join(self.model_dir, "checkpoint.pt")))
+            model.load_state_dict(torch.load(os.path.join(self.model_dir, "checkpoint.pth")))
         except FileNotFoundError:
             print("ERROR! Could not find model parameter file!")
 

@@ -1,6 +1,6 @@
 # Local purposes
-data/raw
-data/processed
+data/*
+!data/README.md
 output/*/*
 !output/*/.gitkeep
 

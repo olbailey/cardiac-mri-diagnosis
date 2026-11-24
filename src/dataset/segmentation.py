@@ -39,7 +39,7 @@ class MriDataset(Dataset):
         # print(type(image_tensor))
         # raise Exception()
 
-        return image_tensor, mask_tensor
+        return image_tensor, mask_tensor, file_name
 
     def retreive_file(self, path, file_name):
         path = os.path.join(path, file_name)
