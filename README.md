@@ -18,7 +18,7 @@ Developed using Python 3.12
 1. First run `python3 -m venv .venv`
 2. Activate using: `source .venv/bin/activate`
 3. Finally `pip install -r requirements.txt`  
-   **if you have an nvidia GPU otherwise:** requirements-torch-cpu.txt <br>
+   **if you have an nvidia GPU otherwise:** cpu-requirements.txt <br>
    **~Note:** Mac users may prefer to install torch separately via `pip install torch` for M-series optimization.
 
 ### Windows
@@ -28,7 +28,7 @@ Use the command prompt not powershell
 1. First run `python -m venv .venv`
 2. Activate using: `.venv/Scripts/activate`
 3. Finally `pip install -r requirements.txt`  
-   **if you have an nvidia GPU otherwise:** requirements-torch-cpu.txt
+   **if you have an nvidia GPU otherwise:** cpu-requirements.txt
 
 ### <u>Next</u>
 follow data/README.md for instructions for setting up the Dataset

@@ -1,26 +1,4 @@
+# CPU-only install: same packages as requirements.txt, with torch taken from
+# the PyTorch CPU wheel index (torch==2.15.0 resolves to 2.15.0+cpu here).
 --extra-index-url https://download.pytorch.org/whl/cpu
-# Core numerical & data handling
-numpy
-PyYAML
-nibabel
-simpleitk
-
-# Visualization
-matplotlib
-tqdm
-
-# Machine learning
-torch
-torchmetrics
-albumentations
-monai
-segmentation-models-pytorch
-
-# Data access
-kagglehub
-
-# Experiment tracking (optional)
-# mlflow
-
-# Testing
-pytest
+-r requirements.txt

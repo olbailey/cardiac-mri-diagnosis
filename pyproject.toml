@@ -1,17 +1,38 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "my_project"
+name = "cardiac-mri-diagnosis"
 version = "0.1.0"
+description = "Cardiac MRI segmentation and diagnosis on the ACDC dataset using PyTorch"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.12"
+# Compatible ranges for installing the package; requirements.txt holds the exact
+# pinned versions used for development.
 dependencies = [
-    "pandas",
-    "numpy",
-    "matplotlib",
-    "pyarrow",
-    "ucimlrepo"
+    # Core numerical & data handling
+    "numpy>=2.5,<3",
+    "PyYAML>=6.0,<7",
+    "nibabel>=5.5,<6",
+    "SimpleITK>=2.5,<3",
+    # Visualization
+    "matplotlib>=3.11,<4",
+    "tqdm>=4.70,<5",
+    # Machine learning
+    "torch>=2.15,<3",
+    "torchmetrics>=1.9,<2",
+    "albumentations>=2.0.8,<3",
+    "monai>=1.6,<2",
+    "segmentation-models-pytorch>=0.6,<0.7",
+    # Data access
+    "kagglehub>=1.0,<2",
+    "requests>=2.34,<3",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=9.2,<10"]
 
 [tool.setuptools]
 package-dir = {"" = "src"}
