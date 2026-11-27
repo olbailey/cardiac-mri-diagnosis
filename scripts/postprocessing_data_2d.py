@@ -5,7 +5,7 @@ import shutil
 import torch
 import segmentation_models_pytorch as smp
 
-from dataset import MriDataset, create_transforms, get_dataloaders
+from dataset import SegmentationDataset, create_transforms, get_dataloaders
 from utils.postprocessing import save_cropped_segmented_output
 
 MODEL_NAME = "segmentation_default_model_save"
@@ -33,8 +33,8 @@ def main():
 
     train_transform, test_transform = create_transforms(IMAGE_SIZE)
 
-    train_dataset = MriDataset(TRAIN_FILE_PATH, train_transform)
-    test_dataset = MriDataset(TEST_FILE_PATH, test_transform)
+    train_dataset = SegmentationDataset(TRAIN_FILE_PATH, train_transform)
+    test_dataset = SegmentationDataset(TEST_FILE_PATH, test_transform)
 
     train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
 

@@ -47,15 +47,6 @@ The structure is sensible (a `src/` layout, a config file, separate preprocessin
 - Later on: compare against nnU-Net on ACDC to see how close you are, and try 2.5D input (neighbouring slices as extra channels).
 
 ## Code quality and setup
-
-- ✅ **Done** — ~~**`pyproject.toml` still looks like a leftover template.** The name is `my_project`, and the dependencies (`pandas`, `pyarrow`, `ucimlrepo`) aren't this project's. Move the real dependencies there.~~
-  Renamed to `cardiac-mri-diagnosis`, real dependencies listed as version ranges, `pytest` moved to a `dev` extra.
-- ✅ **Done** — ~~**Dependencies:**~~
-  - ~~Pin versions.~~
-  - ~~Add `requests`, which `download_data.py` imports directly.~~
-  - ~~Have the CPU requirements file reuse the main one with `-r requirements.txt` instead of copying it.~~
-
-  `requirements.txt` pinned to the versions in `.venv` with `requests` added; `cpu-requirements.txt` is now the CPU index plus `-r requirements.txt`. The README's stale `requirements-torch-cpu.txt` references were also corrected.
 - **Package names are generic.** Top-level packages called `utils`, `data`, `model` and `dataset` can clash with other installed packages. Put them under one package, e.g. `src/cardiac_mri/...`.
 - **The README is out of date:**
   - The example `python -m training.train` no longer exists; it's now `training.segmentation`.

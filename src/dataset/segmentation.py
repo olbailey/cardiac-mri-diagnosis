@@ -11,7 +11,7 @@ from monai.transforms import (
     RandAffined, RandFlipd, RandGaussianNoised, RandAdjustContrastd
 )
 
-class MriDataset(Dataset):
+class SegmentationDataset(Dataset):
     def __init__(self, root_dir, transform=None):
         self.root_dir = root_dir
         self.transform = transform
@@ -104,7 +104,7 @@ def get_dataloaders(train_dataset, test_dataset, batch_size, device):
 
 
 if __name__ == "__main__":
-    dataset = MriDataset("data/processed/training")
+    dataset = SegmentationDataset("data/processed/training")
     # dataset[0]
     for i in range(len(dataset)):
         dataset[i]

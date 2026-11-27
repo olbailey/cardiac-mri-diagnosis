@@ -9,7 +9,7 @@ from monai.losses import DiceCELoss
 
 import segmentation_models_pytorch as smp
 
-from dataset import MriDataset, create_transforms, get_dataloaders
+from dataset import SegmentationDataset, create_transforms, get_dataloaders
 from utils.training import train_epoch, evaluate, finish_training, EarlyStopping
 from utils.graphs import show_single_slice_prediction
 from utils.segmentation.args_parser import parse_args
@@ -39,8 +39,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 train_transform, test_transform = create_transforms(IMAGE_SIZE)
 
-train_dataset = MriDataset(TRAIN_FILE_PATH, train_transform)
-test_dataset = MriDataset(TEST_FILE_PATH, test_transform)
+train_dataset = SegmentationDataset(TRAIN_FILE_PATH, train_transform)
+test_dataset = SegmentationDataset(TEST_FILE_PATH, test_transform)
 
 train_loader, test_loader = get_dataloaders(train_dataset, test_dataset, BATCH_SIZE, device)
 
@@ -66,7 +66,7 @@ model = smp.Unet(
 loss_function = DiceCELoss(to_onehot_y=True, softmax=True)
 
 optimizer = optim.Adam(model.parameters(), LEARNING_RATE, weight_decay=1e-5)
-schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
+# schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
 schedular_plateau = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, 
     mode="min", 
@@ -91,13 +91,13 @@ try:
         mean_dice, dice_classes_str, eval_loss = evaluate(model, test_loader, loss_function, CLASSES_NUM, device)
         print(f"Training Loss: {train_loss:.4f}, Validation Loss: {eval_loss:.4f}")
         print(f"Validation Dice Metric {dice_classes_str}") #:.6f
-        print(f"lr: {schedular_steplr.get_last_lr()[0]:.6f}")
+        print(f"lr: {schedular_plateau.get_last_lr()[0]:.6f}")
 
         model = early_stopping.update(model, mean_dice)
 
-        schedular_steplr.step()
+        # schedular_steplr.step()
 
-        schedular_plateau.step(eval_loss)
+        schedular_plateau.step(mean_dice)
 
 
         if early_stopping.stopped:
