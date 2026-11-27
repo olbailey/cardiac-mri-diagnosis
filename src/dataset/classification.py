@@ -1,0 +1,157 @@
+import os
+
+import numpy as np
+import nibabel as nib
+
+import torch
+from torch.utils.data import Dataset, Subset, DataLoader
+import monai
+from monai.config import KeysCollection
+from monai.transforms import (
+    MapTransform,
+    Compose, LoadImaged, EnsureChannelFirstd, EnsureTyped, ResizeWithPadOrCropd, NormalizeIntensityd,
+    RandAffined, RandFlipd, RandGaussianNoised, RandAdjustContrastd
+)
+
+
+
+class ClassificationDataset(Dataset):
+    def __init__(self, root_dir, transform=None):
+        self.root_dir = root_dir
+        self.transform = transform
+
+        self.file_names = os.listdir(self.path_images)
+
+    def __len__(self):
+        return len(self.file_names)
+
+    def __getitem__(self, idx):
+        file_name = self.file_names[idx]
+
+        data_dict = {
+            "image": os.path.join(self.path_images, file_name), 
+            "label": os.path.join(self.path_masks, file_name)
+        }
+        if self.transform is not None:
+            data_dict = self.transform(data_dict)
+
+        image_tensor, mask_tensor = data_dict["image"], data_dict["label"]
+
+        # print(type(image_tensor))
+        # raise Exception()
+
+        return image_tensor, mask_tensor, file_name
+
+    def retreive_file(self, path, file_name):
+        path = os.path.join(path, file_name)
+        return np.load(path)
+
+    def apply_transform(self, file_name):
+        data_dict = {
+            "image": os.path.join(self.path_images, file_name), 
+            "label": os.path.join(self.path_masks, file_name)
+        }
+
+        if self.transform is not None:
+            data_dict = self.transform(data_dict)
+
+        image_tensor, mask_tensor = data_dict["image"], data_dict["label"]
+
+        return image_tensor, mask_tensor
+
+
+def create_transforms(image_size: int) -> monai.transforms.Compose:
+    """_summary_
+
+    Args:
+        image_size (int): Set image size for the input for the model,
+        will output a square image, image size must be a multiple of 2^k, where k is the number of U-net pooling steps
+
+    Returns:
+        monai.transforms.Compose: _description_
+    """
+    basic_transform = [
+        LoadImaged(keys=["image", "label"]), # Loading py file
+        EnsureChannelFirstd(keys=["image", "label"]), # Adding dimension to be expected format (c, h, w)
+        ResizeWithPadOrCropd(keys=["image", "label"], spatial_size=(image_size, image_size), mode="constant"), # Padding Or cropping to expected size
+    ]
+
+    train_transform = Compose(
+        basic_transform +
+        [
+            # RandAffined(keys=["image", "label"], prob=0.3, rotate_range=(0.1, 0.1), scale_range=(0.1, 0.1), mode=("bilinear", "nearest")), # Rotating and Scaling the image
+            # RandFlipd(keys=["image", "label"], prob=0.5, spatial_axis=0), # 
+            # RandGaussianNoised(keys=["image"], prob=0.2, std=0.01), # Gaussian noise
+            # RandAdjustContrastd(keys=["image"], prob=0.2, gamma=(0.8, 1.2)),
+            EnsureTyped(keys=["image", "label"], dtype=[torch.float32, torch.long])
+        ]
+    )
+
+    test_transform = Compose(
+        basic_transform + [EnsureTyped(keys=["image", "label"], dtype=[torch.float32, torch.long])]
+    )
+
+    return train_transform, test_transform
+
+def get_dataloaders(train_dataset, test_dataset, batch_size, device):
+    if device.type == "cuda":
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, pin_memory=True, num_workers=4)
+        test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, pin_memory=True, num_workers=2)
+    else:
+        train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+
+    return train_loader, test_loader
+
+class LoadTorchd(MapTransform):
+    """Load a .pt file containing both image and mask, and split them into
+    separate "image" and "label" entries.
+
+    Supported file contents:
+      - dict:         {"image": Tensor, "mask": Tensor}  (key names configurable)
+      - tuple/list:   (image, mask)
+      - single tensor of shape (2, H, W): channel 0 = image, channel 1 = mask
+    """
+
+    def __init__(
+        self,
+        keys: KeysCollection = "path",
+        image_key: str = "image",
+        label_key: str = "mask",
+        allow_missing_keys: bool = False,
+    ):
+        super().__init__(keys, allow_missing_keys)
+        self.image_key = image_key
+        self.label_key = label_key
+
+    def _split(self, obj):
+        if isinstance(obj, dict):
+            return obj[self.image_key], obj[self.label_key]
+        if isinstance(obj, (tuple, list)):
+            return obj[0], obj[1]
+        if torch.is_tensor(obj) and obj.shape[0] == 2:
+            return obj[0], obj[1]
+        raise ValueError(f"Unsupported .pt contents: {type(obj)}")
+
+    def __call__(self, data):
+        d = dict(data)
+        for key in self.key_iterator(d):
+            obj = torch.load(d[key], map_location="cpu", weights_only=True)
+            image, label = self._split(obj)
+
+            # Ensure channel-first (1, H, W) if the tensors are plain (H, W)
+            if image.ndim == 2:
+                image = image.unsqueeze(0)
+            if label.ndim == 2:
+                label = label.unsqueeze(0)
+
+            d["image"] = image.float()
+            d["label"] = label.float()
+        return d
+
+
+if __name__ == "__main__":
+    dataset = MriDataset("data/processed/training")
+    # dataset[0]
+    for i in range(len(dataset)):
+        dataset[i]
