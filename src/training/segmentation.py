@@ -71,7 +71,7 @@ def main():
     # schedular_steplr = optim.lr_scheduler.StepLR(optimizer, step_size=2, gamma=0.1)
     schedular_plateau = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, 
-        mode="min", 
+        mode="max",  # mean_dice: higher is better
         threshold_mode="abs", 
         threshold=configs["training"]["min_delta"], 
         factor=0.2, 
