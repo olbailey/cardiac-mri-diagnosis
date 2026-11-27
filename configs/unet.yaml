@@ -9,7 +9,7 @@ training:
   batch_size: 16
   learning_rate: 0.001
   patience: 4
-  min_delta: 0.01
+  min_delta: 0.001
 
 data:
   model_name: "segmentation_default_model_save"

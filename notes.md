@@ -21,13 +21,7 @@ The structure is sensible (a `src/` layout, a config file, separate preprocessin
 
 ## Bugs and correctness problems (fix these first)
 
-1. **The learning rate drops to almost zero within a few epochs.** `StepLR(step_size=2, gamma=0.1)` cuts the rate by 10× every 2 epochs. By epoch 8 it's about 1e-7, so most of the 50 epochs do nothing. Use the plateau scheduler you already set up, or cosine annealing, or a much larger `step_size`.
 2. **The test set is used for validation.** `evaluate` runs on `data/processed/testing` every epoch. Once you start early stopping or tuning on that, your test score will look better than it really is. Hold out about 15–20% of the training patients as a validation set, splitting by patient rather than by slice so slices from one patient can't leak across, and only touch the test set at the end.
-3. **Early stopping won't work when you turn it back on:**
-   - `evaluate` returns `dice` as a formatted string, and `EarlyStopping.update` compares it with `<`.
-   - It also assumes lower is better. That's wrong for Dice, though right for loss.
-   - With `restore_best_weights=False` it never stops.
-4. **Path typo:** `MODEL_TEMP_DATA_DIR = "outputs/models/temp"` should be `output/`. `.gitignore` only covers `output/*/`, so checkpoints written to `outputs/` would be picked up by git.
 5. **Models are only saved, and the prediction plot only shown, on Ctrl+C.** If training finishes normally, the result is lost. Move that code after the loop, and save the best checkpoint by validation Dice automatically.
 6. **The config is mostly ignored.** `unet.yaml` says `encoder_depth: 4` and `base_channels: 64`, but the model is hardcoded as `resnet34`, depth 5, 4 classes. Either drive the model choice from the config (e.g. `type: smp_unet | custom_unet`) or remove the unused keys.
 7. **The training script runs on import.** All of `segmentation.py` sits at module level. Wrap it in `main()` behind `if __name__ == "__main__":`.
